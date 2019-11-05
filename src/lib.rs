@@ -1,3 +1,23 @@
+//! This crate contains tools you can use to get gleam giveaways links.  
+//!   
+//! You can search google for every youtube video mentionning gleam.io in the last hour with google::search().  
+//! After you got this links to youtube, you can load the pages and parse the description to get gleam.io links with youtube::resolve().  
+//! In the future you will be able to parse gleam pages.  
+//! 
+//! # Examples
+//! 
+//! ```
+//! use gleam_finder::*;
+//! 
+//! // note that we only test the first page of google results and that there can be more
+//! for youtube_link in google::search("\"gleam.io\"+site:youtube.com&tbs=qdr:h", 0) {
+//!     // you may want to wait between laodings because youtube and google can block you for spamming requests too quikly
+//!     for gleam_link in youtube::resolve(&youtube_link) {
+//!         println!("gleam link found: {}", gleam_link);
+//!     }
+//! }
+//! ```
+
 mod string_tools {
     pub fn get_all_before_strict<'a>(text: &'a str, begin: &str) -> Option<&'a str> {
         let begin = text.find(begin)?;
@@ -54,7 +74,7 @@ mod string_tools {
 }
 
 /// Contains functions related to google pages parsing.
-mod google {
+pub mod google {
     use crate::string_tools::*;
 
     fn get_full_url(request: &str, page: usize) -> String {
@@ -65,7 +85,18 @@ mod google {
         )
     }
 
-    pub fn resolve(request: &str, page: usize) -> Vec<String> {
+    /// Search google for a something and returns result urls.  
+    /// See [Google Advanced Search](https://www.google.com/advanced_search) for more information about request syntax.  
+    /// Only one page is loaded.  
+    /// # Examples
+    /// ```
+    /// use gleam_finder::google;
+    /// 
+    /// // get every youtube page that mentionned gleam.io in the last hour
+    /// // note that we only test the first page of google results and that there can be more
+    /// let youtube_links = google::search("\"gleam.io\"+site:youtube.com&tbs=qdr:h", 0);
+    /// ```
+    pub fn search(request: &str, page: usize) -> Vec<String> {
         if let Ok(response) = minreq::get(get_full_url(request, page))
             .with_header("Accept", "text/plain")
             .with_header("Host", "www.google.com")
@@ -101,16 +132,21 @@ mod google {
 
     #[test]
     fn resolve_google_request() {
-        let result = resolve("\"gleam.io\"+site:youtube.com&tbs=qdr:h", 0);
+        let result = search("\"gleam.io\"+site:youtube.com&tbs=qdr:h", 0);
         assert!(result.len() > 0);
     }
 }
 
 /// Contains functions related to youtube pages parsing
-mod youtube {
+pub mod youtube {
     use crate::string_tools::*;
 
-    /// Load a youtube page and return any gleam url located in the description of the video.
+    /// Load a youtube page and return any gleam url located in the description of the video.  
+    /// ```
+    /// use gleam_finder::youtube;
+    /// 
+    /// let gleam_urls = resolve("https://www.youtube.com/watch?v=yy9tGgHMIE8");
+    /// ```
     pub fn resolve(url: &str) -> Vec<String> {
         if let Ok(response) = minreq::get(url)
             .with_header("Accept", "text/plain")
@@ -146,4 +182,9 @@ mod youtube {
         let result = resolve("https://www.youtube.com/watch?v=Am7v1Fp92I0");
         assert_eq!(result, vec!["https://gleam.io/competitions/6mqZ0-7-gnlk-awp-ekilii"]);
     }
+}
+
+/// Empty for now
+pub mod gleam {
+
 }
