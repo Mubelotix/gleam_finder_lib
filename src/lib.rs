@@ -159,8 +159,8 @@ pub mod youtube {
         {
             let mut description = get_all_between_strict(&response.body, ",\"shortDescription\":\"", "\",\"isCrawlable\":").unwrap_or("");
             let mut rep = Vec::new();
-            while get_all_between(description, "https://gleam.io/competitions/", "\\") != "" {
-                rep.push(format!("https://gleam.io/competitions/{}", get_all_between(description, "https://gleam.io/competitions/", "\\")));
+            while get_all_between(description, "https://gleam.io/", "\\") != "" {
+                rep.push(format!("https://gleam.io/{}", get_all_between(description, "https://gleam.io/", "\\")));
                 description = get_all_after(description, url);
             }
             rep
@@ -179,8 +179,8 @@ pub mod youtube {
         assert_eq!(result, vec!["https://gleam.io/competitions/KgwYi-giveaway-5x-invitatii-bucharest-gaming-week"]);
         let result = resolve("https://www.youtube.com/watch?v=d1QzAvTmCZs");
         assert_eq!(result, vec!["https://gleam.io/competitions/4t6vD-ardagamertv7"]);
-        let result = resolve("https://www.youtube.com/watch?v=Am7v1Fp92I0");
-        assert_eq!(result, vec!["https://gleam.io/competitions/6mqZ0-7-gnlk-awp-ekilii"]);
+        let result = resolve("https://www.youtube.com/watch?v=QPVIr484jE4");
+        assert_eq!(result, vec!["https://gleam.io/QuL1B/500-dima-free-fire"]);
     }
 }
 
