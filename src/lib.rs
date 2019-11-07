@@ -77,10 +77,9 @@ mod string_tools {
 pub mod google {
     use crate::string_tools::*;
 
-    fn get_full_url(request: &str, page: usize) -> String {
+    fn get_full_url(page: usize) -> String {
         format!(
-            "https://www.google.com/search?q={}&start={}",
-            request,
+            "https://www.google.com/search?q=\"gleam.io\"+site:youtube.com&tbs=qdr:h&filter=0&start={}",
             page * 10
         )
     }
@@ -96,8 +95,8 @@ pub mod google {
     /// // note that we only test the first page of google results and that there can be more
     /// let youtube_links = google::search("\"gleam.io\"+site:youtube.com&tbs=qdr:h", 0);
     /// ```
-    pub fn search(request: &str, page: usize) -> Vec<String> {
-        if let Ok(response) = minreq::get(get_full_url(request, page))
+    pub fn search(page: usize) -> Vec<String> {
+        if let Ok(response) = minreq::get(get_full_url(page))
             .with_header("Accept", "text/plain")
             .with_header("Host", "www.google.com")
             .with_header(
@@ -116,7 +115,7 @@ pub mod google {
         } else {
             eprintln!(
                 "Warning: can't get response from google for {}",
-                get_full_url(request, page)
+                get_full_url(page)
             );
             Vec::new()
         }
@@ -125,14 +124,14 @@ pub mod google {
     #[test]
     fn get_full_url_test() {
         assert_eq!(
-            "https://www.google.com/search?q=\"gleam.io\"+site:youtube.com&tbs=qdr:h&start=10",
-            get_full_url("\"gleam.io\"+site:youtube.com&tbs=qdr:h", 1)
+            "https://www.google.com/search?q=\"gleam.io\"+site:youtube.com&tbs=qdr:h&filter=0&start=10",
+            get_full_url(1)
         );
     }
 
     #[test]
     fn resolve_google_request() {
-        let result = search("\"gleam.io\"+site:youtube.com&tbs=qdr:h", 0);
+        let result = search(0);
         assert!(result.len() > 0);
     }
 }
@@ -175,10 +174,17 @@ pub mod youtube {
 
     #[test]
     fn find_in_youtube() {
+        use std::thread;
+        use std::time::Duration;
+        
         let result = resolve("https://www.youtube.com/watch?v=yy9tGgHMIE8");
         assert_eq!(result, vec!["https://gleam.io/competitions/KgwYi-giveaway-5x-invitatii-bucharest-gaming-week"]);
-        let result = resolve("https://www.youtube.com/watch?v=d1QzAvTmCZs");
-        assert_eq!(result, vec!["https://gleam.io/competitions/4t6vD-ardagamertv7"]);
+
+        //thread::sleep(Duration::from_secs(5));
+        //let result = resolve("https://www.youtube.com/watch?v=d1QzAvTmCZs");
+        //assert_eq!(result, vec!["https://gleam.io/competitions/4t6vD-ardagamertv7"]);
+
+        thread::sleep(Duration::from_secs(5));
         let result = resolve("https://www.youtube.com/watch?v=QPVIr484jE4");
         assert_eq!(result, vec!["https://gleam.io/QuL1B/500-dima-free-fire"]);
     }
