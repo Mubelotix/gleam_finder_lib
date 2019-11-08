@@ -167,8 +167,13 @@ pub mod intermediary {
             let mut body: &str = &response.body;
             let mut rep = Vec::new();
             while get_all_after(&body, "https://gleam.io/") != "" {
-                let url = format!("https://gleam.io/{}", get_url(get_all_after(&body, "https://gleam.io/")));
+                let url = get_url(get_all_after(&body, "https://gleam.io/"));
                 body = get_all_after(&body, &url);
+                let url = if url.len() >= 20 {
+                    format!("https://gleam.io/{}", &url[..20])
+                } else {
+                    format!("https://gleam.io/{}", url)
+                };
                 if !rep.contains(&url) {
                     rep.push(url);
                 }
