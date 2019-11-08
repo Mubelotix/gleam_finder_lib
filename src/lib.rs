@@ -9,11 +9,12 @@
 //! ```
 //! use gleam_finder::*;
 //! 
-//! // note that we only test the first page of google results and that there can be more
-//! for youtube_link in google::search("\"gleam.io\"+site:youtube.com&tbs=qdr:h", 0) {
-//!     // you may want to wait between laodings because youtube and google can block you for spamming requests too quikly
-//!     for gleam_link in youtube::resolve(&youtube_link) {
-//!         println!("gleam link found: {}", gleam_link);
+//! for page in 0..4 {
+//!     for link in google::search(page) {
+//!         println!("resolving {}", link);
+//!         for gleam_link in intermediary::resolve(&link) {
+//!             println!("gleam link found: {}", gleam_link);
+//!         }
 //!     }
 //! }
 //! ```
@@ -107,9 +108,8 @@ pub mod google {
     /// ```
     /// use gleam_finder::google;
     /// 
-    /// // get every youtube page that mentionned gleam.io in the last hour
     /// // note that we only test the first page of google results and that there can be more
-    /// let youtube_links = google::search("\"gleam.io\"+site:youtube.com&tbs=qdr:h", 0);
+    /// let links = google::search(0);
     /// ```
     pub fn search(page: usize) -> Vec<String> {
         if let Ok(response) = minreq::get(get_full_url(page))
@@ -187,21 +187,6 @@ pub mod intermediary {
             Vec::new()
         }
     }
-
-    #[test]
-    fn testddzd() {
-        use crate::google;
-
-        for page in 0..4 {
-            for link in google::search(page) {
-                println!("resolving {}", link);
-                for gleam_link in resolve(&link) {
-                    println!("gleam link found: {}", gleam_link);
-                }
-            }
-        }
-    }
-
 }
 
 /// Empty for now
