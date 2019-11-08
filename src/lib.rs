@@ -55,8 +55,24 @@ mod string_tools {
         text
     }
 
+    /// put an url+noise, get url (without http://domain.something/)
+    pub fn get_url(url: &str) -> &str {
+        let mut i = 0;
+        for c in url.chars() {
+            if !c.is_ascii_alphanumeric() {
+                if c != '-' && c != '/' && c != '_' {
+                    break;
+                }
+            }
+            i += 1;
+        }
+        &url[..i]
+    }
+
     #[test]
     fn string_tools_test() {
+        assert_eq!("/search", get_url("/search?q=\"gleam.io\"&tbs=qdr:h&filter=0&start={}"));
+        assert_eq!("/competition/something-wtf-giveaway", get_url("/competition/something-wtf-giveaway and more"));
         assert_eq!(Some("test"), get_all_before_strict("testlol", "lol"));
         assert_eq!(Some("test"), get_all_before_strict("testloltestlol", "lol"));
         assert_eq!(Some("lol"), get_all_after_strict("testlol", "test"));
@@ -79,7 +95,7 @@ pub mod google {
 
     fn get_full_url(page: usize) -> String {
         format!(
-            "https://www.google.com/search?q=\"gleam.io\"+site:youtube.com&tbs=qdr:h&filter=0&start={}",
+            "https://www.google.com/search?q=\"gleam.io\"&tbs=qdr:h&filter=0&start={}",
             page * 10
         )
     }
@@ -124,7 +140,7 @@ pub mod google {
     #[test]
     fn get_full_url_test() {
         assert_eq!(
-            "https://www.google.com/search?q=\"gleam.io\"+site:youtube.com&tbs=qdr:h&filter=0&start=10",
+            "https://www.google.com/search?q=\"gleam.io\"&tbs=qdr:h&filter=0&start=10",
             get_full_url(1)
         );
     }
@@ -136,31 +152,26 @@ pub mod google {
     }
 }
 
-/// Contains functions related to youtube pages parsing
-pub mod youtube {
+pub mod intermediary {
     use crate::string_tools::*;
 
-    /// Load a youtube page and return any gleam url located in the description of the video.  
-    /// ```
-    /// use gleam_finder::youtube;
-    /// 
-    /// let gleam_urls = resolve("https://www.youtube.com/watch?v=yy9tGgHMIE8");
-    /// ```
     pub fn resolve(url: &str) -> Vec<String> {
         if let Ok(response) = minreq::get(url)
             .with_header("Accept", "text/plain")
-            .with_header("Host", "www.youtube.com")
             .with_header(
                 "User-Agent",
                 "Mozilla/5.0 (X11; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0",
             )
             .send()
         {
-            let mut description = get_all_between_strict(&response.body, ",\"shortDescription\":\"", "\",\"isCrawlable\":").unwrap_or("");
+            let mut body: &str = &response.body;
             let mut rep = Vec::new();
-            while get_all_between(description, "https://gleam.io/", "\\") != "" {
-                rep.push(format!("https://gleam.io/{}", get_all_between(description, "https://gleam.io/", "\\")));
-                description = get_all_after(description, url);
+            while get_all_after(&body, "https://gleam.io/") != "" {
+                let url = format!("https://gleam.io/{}", get_url(get_all_after(&body, "https://gleam.io/")));
+                body = get_all_after(&body, &url);
+                if !rep.contains(&url) {
+                    rep.push(url);
+                }
             }
             rep
         } else {
@@ -173,21 +184,19 @@ pub mod youtube {
     }
 
     #[test]
-    fn find_in_youtube() {
-        use std::thread;
-        use std::time::Duration;
-        
-        let result = resolve("https://www.youtube.com/watch?v=yy9tGgHMIE8");
-        assert_eq!(result, vec!["https://gleam.io/competitions/KgwYi-giveaway-5x-invitatii-bucharest-gaming-week"]);
+    fn testddzd() {
+        use crate::google;
 
-        //thread::sleep(Duration::from_secs(5));
-        //let result = resolve("https://www.youtube.com/watch?v=d1QzAvTmCZs");
-        //assert_eq!(result, vec!["https://gleam.io/competitions/4t6vD-ardagamertv7"]);
-
-        thread::sleep(Duration::from_secs(5));
-        let result = resolve("https://www.youtube.com/watch?v=QPVIr484jE4");
-        assert_eq!(result, vec!["https://gleam.io/QuL1B/500-dima-free-fire"]);
+        for page in 0..4 {
+            for link in google::search(page) {
+                println!("resolving {}", link);
+                for gleam_link in resolve(&link) {
+                    println!("gleam link found: {}", gleam_link);
+                }
+            }
+        }
     }
+
 }
 
 /// Empty for now
