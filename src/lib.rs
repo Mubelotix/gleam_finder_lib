@@ -232,7 +232,9 @@ pub mod gleam {
     }
 
     /// A simple struct used to store informations about a gleam.io giveaway.
+    /// Can be serialized by activing the feature "serde-support"
     #[derive(Debug)]
+    #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
     pub struct Giveaway {
         url: String,
         entry_count: u64,
@@ -383,4 +385,3 @@ pub mod gleam {
         }
     }
 }
-

@@ -1,6 +1,6 @@
 [package]
 name = "gleam_finder"
-version = "0.2.3"
+version = "0.2.4"
 license = "MIT"
 description = "A very small crate you can use to get gleam.io links."
 authors = ["Mubelotix <unbeliever.in.time@gmail.com>"]
@@ -8,3 +8,7 @@ edition = "2018"
 
 [dependencies]
 minreq = { version = "1.4.1", features = ["https"] }
+serde = { version = "1.0.104", features = ["derive"], optional = true }
+
+[features]
+serde-support = ["serde"]
