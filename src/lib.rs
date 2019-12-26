@@ -215,7 +215,7 @@ pub mod intermediary {
     }
 }
 
-/// Empty for now
+/// Contains giveaways fetcher
 pub mod gleam {
     use super::string_tools::get_all_between_strict;
     use super::string_tools::get_idx_between_strict;
