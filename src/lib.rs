@@ -2,7 +2,7 @@
 //!   
 //! You can search google for every youtube video mentionning gleam.io in the last hour with google::search().  
 //! After you got this links to youtube, you can load the pages and parse the description to get gleam.io links with youtube::resolve().  
-//! In the future you will be able to parse gleam pages.  
+//! You can parse a gleam.io page with the Giveaway struct.
 //! 
 //! # Examples
 //! 
@@ -86,23 +86,28 @@ mod string_tools {
         &url[..i]
     }
 
-    #[test]
-    fn string_tools_test() {
-        assert_eq!("/search", get_url("/search?q=\"gleam.io\"&tbs=qdr:h&filter=0&start={}"));
-        assert_eq!("/competition/something-wtf-giveaway", get_url("/competition/something-wtf-giveaway and more"));
-        assert_eq!(Some("test"), get_all_before_strict("testlol", "lol"));
-        assert_eq!(Some("test"), get_all_before_strict("testloltestlol", "lol"));
-        assert_eq!(Some("lol"), get_all_after_strict("testlol", "test"));
-        assert_eq!(Some("testlol"), get_all_after_strict("testloltestlol", "lol"));
-        assert_eq!(Some("str3str4"), get_all_between_strict("str1str2str3str4str5", "str2", "str5"));
-        assert_eq!(Some("str3str4"), get_all_between_strict("str5str1str2str3str4str5str2str3str5", "str2", "str5"));
-        assert_eq!(None, get_all_before_strict("str1str2", "str3"));
-        assert_eq!("str1str2", get_all_before("str1str2", "str3"));
-        assert_eq!(None, get_all_after_strict("str1str2", "str3"));
-        assert_eq!("", get_all_after("str1str2", "str3"));
-        assert_eq!("str2str3", get_all_between("str1str2str3str4", "str1", "str4"));
-        assert_eq!("", get_all_between("str1str2str3str4", "str0", "str4"));
-        assert_eq!("str2str3str4", get_all_between("str1str2str3str4", "str1", "str6"));
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn string_tools_test() {
+            assert_eq!("/search", get_url("/search?q=\"gleam.io\"&tbs=qdr:h&filter=0&start={}"));
+            assert_eq!("/competition/something-wtf-giveaway", get_url("/competition/something-wtf-giveaway and more"));
+            assert_eq!(Some("test"), get_all_before_strict("testlol", "lol"));
+            assert_eq!(Some("test"), get_all_before_strict("testloltestlol", "lol"));
+            assert_eq!(Some("lol"), get_all_after_strict("testlol", "test"));
+            assert_eq!(Some("testlol"), get_all_after_strict("testloltestlol", "lol"));
+            assert_eq!(Some("str3str4"), get_all_between_strict("str1str2str3str4str5", "str2", "str5"));
+            assert_eq!(Some("str3str4"), get_all_between_strict("str5str1str2str3str4str5str2str3str5", "str2", "str5"));
+            assert_eq!(None, get_all_before_strict("str1str2", "str3"));
+            assert_eq!("str1str2", get_all_before("str1str2", "str3"));
+            assert_eq!(None, get_all_after_strict("str1str2", "str3"));
+            assert_eq!("", get_all_after("str1str2", "str3"));
+            assert_eq!("str2str3", get_all_between("str1str2str3str4", "str1", "str4"));
+            assert_eq!("", get_all_between("str1str2str3str4", "str0", "str4"));
+            assert_eq!("str2str3str4", get_all_between("str1str2str3str4", "str1", "str6"));
+        }
     }
 }
 
@@ -153,18 +158,23 @@ pub mod google {
         }
     }
 
-    #[test]
-    fn get_full_url_test() {
-        assert_eq!(
-            "https://www.google.com/search?q=\"gleam.io\"&tbs=qdr:h&filter=0&start=10",
-            get_full_url(1)
-        );
-    }
+    #[cfg(test)]
+    mod tests {
+        use super::*;
 
-    #[test]
-    fn resolve_google_request() {
-        let result = search(0);
-        assert!(result.len() > 0);
+        #[test]
+        fn get_full_url_test() {
+            assert_eq!(
+                "https://www.google.com/search?q=\"gleam.io\"&tbs=qdr:h&filter=0&start=10",
+                get_full_url(1)
+            );
+        }
+
+        #[test]
+        fn resolve_google_request() {
+            let result = search(0);
+            assert!(result.len() > 0);
+        }
     }
 }
 
@@ -340,7 +350,7 @@ pub mod gleam {
             return false;
         }
 
-        /// Reload the giveaway and update informations
+        /// Reload the giveaway and update informations. 
         pub fn update(&mut self) {
             if let Some(giveaway) = Giveaway::fetch(&self.url) {
                 *self = giveaway;
@@ -350,21 +360,27 @@ pub mod gleam {
         }
     }
 
-    #[test]
-    fn test_giveaway_struct() {
-        let giveaway = Giveaway::fetch("https://gleam.io/WUlv8/troy-xmas-giveaway").unwrap();
-        println!("{:?}", giveaway);
+    #[cfg(test)]
+    mod tests {
+        use super::*;
 
-        sleep(Duration::from_secs(5));
+        #[test]
+        fn test_giveaway_struct() {
+            let giveaway = Giveaway::fetch("https://gleam.io/WUlv8/troy-xmas-giveaway").unwrap();
+            println!("{:?}", giveaway);
 
-        let giveaway = Giveaway::fetch("https://gleam.io/8nTqy/amd-5700xt-gpu").unwrap();
-        println!("{:?}", giveaway);
-    }
+            sleep(Duration::from_secs(5));
 
-    #[test]
-    fn test_description() {
-        let mut description = String::from("\\u003ch2\\u003eRetweet to Win Giveaway of $1000 TROY Tokens!\\u003c/h2\\u003e");
-        clear_description(&mut description);
-        println!("{}", description);
+            let giveaway = Giveaway::fetch("https://gleam.io/8nTqy/amd-5700xt-gpu").unwrap();
+            println!("{:?}", giveaway);
+        }
+
+        #[test]
+        fn test_description() {
+            let mut description = String::from("\\u003ch2\\u003eRetweet to Win Giveaway of $1000 TROY Tokens!\\u003c/h2\\u003e");
+            clear_description(&mut description);
+            println!("{}", description);
+        }
     }
 }
+
