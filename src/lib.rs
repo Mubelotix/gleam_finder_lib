@@ -237,6 +237,9 @@ pub mod gleam {
     use std::time::{SystemTime, UNIX_EPOCH, Duration};
     use std::thread::sleep;
 
+    #[cfg(feature = "serde-support")]
+    use serde::{Serialize, Deserialize};
+
     fn clear_description(description: &mut String) {
         while let Some((x, x2)) = get_idx_between_strict(&description, "\\u003c", "\\u003e") {
             let mut before = description[..x-6].to_string();
