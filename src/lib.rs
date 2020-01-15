@@ -35,6 +35,14 @@ mod string_tools {
         Some(begin)
     }
 
+    pub fn get_idx_before(text: &str, begin: &str) -> usize {
+        if let Some(idx) = text.find(begin) {
+            return idx
+        } else {
+            return text.len() - 1;
+        }
+    }
+
     pub fn get_idx_after_strict<'a>(text: &'a str, end: &str) -> Option<usize> {
         let end = text.find(end)? + end.len();
         Some(end)
@@ -142,13 +150,16 @@ pub mod google {
             )
             .send()
         {
-            let mut body = response.body.as_str();
-            let mut rep = Vec::new();
-            while let Some(url) = get_all_between_strict(body, "\"r\"><a href=\"", "\" onmousedown=\"return rwt(") {
-                rep.push(url.to_string());
-                body = get_all_after(body, url);
+            if let Ok(mut body) = response.as_str() {
+                let mut rep = Vec::new();
+                while let Some(url) = get_all_between_strict(body, "\"r\"><a href=\"", "\" onmousedown=\"return rwt(") {
+                    rep.push(url.to_string());
+                    body = get_all_after(body, url);
+                }
+                rep
+            } else {
+                Vec::new()
             }
-            rep
         } else {
             eprintln!(
                 "Warning: can't get response from google for {}",
@@ -190,21 +201,24 @@ pub mod intermediary {
             )
             .send()
         {
-            let mut body: &str = &response.body;
-            let mut rep = Vec::new();
-            while get_all_after(&body, "https://gleam.io/") != "" {
-                let url = get_url(get_all_after(&body, "https://gleam.io/"));
-                body = get_all_after(&body, &url);
-                let url = if url.len() >= 20 {
-                    format!("https://gleam.io/{}", &url[..20])
-                } else {
-                    format!("https://gleam.io/{}", url)
-                };
-                if !rep.contains(&url) {
-                    rep.push(url);
+            if let Ok(mut body) = response.as_str() {
+                let mut rep = Vec::new();
+                while get_all_after(&body, "https://gleam.io/") != "" {
+                    let url = get_url(get_all_after(&body, "https://gleam.io/"));
+                    body = get_all_after(&body, &url);
+                    let url = if url.len() >= 20 {
+                        format!("https://gleam.io/{}", &url[..20])
+                    } else {
+                        format!("https://gleam.io/{}", url)
+                    };
+                    if !rep.contains(&url) {
+                        rep.push(url);
+                    }
                 }
+                rep
+            } else {
+                Vec::new()
             }
-            rep
         } else {
             eprintln!(
                 "Warning: can't get response for {}",
@@ -219,6 +233,7 @@ pub mod intermediary {
 pub mod gleam {
     use super::string_tools::get_all_between_strict;
     use super::string_tools::get_idx_between_strict;
+    use super::string_tools::get_idx_before;
     use std::time::{SystemTime, UNIX_EPOCH, Duration};
     use std::thread::sleep;
 
@@ -229,6 +244,7 @@ pub mod gleam {
             before.push_str(after);
             *description = String::from(before);
         }
+        *description = description[..get_idx_before(description, "\\u003")].to_string();
     }
 
     /// A simple struct used to store informations about a gleam.io giveaway.
@@ -258,39 +274,38 @@ pub mod gleam {
                 .with_header("TE", "Trailers")
                 .send()
             {
-                let body: &str = &response.body;
-
-                let start_date: u64 = if let Ok(start_date) = get_all_between_strict(body, "starts_at&quot;:", ",&quot;")?.parse() {
-                    start_date
-                } else {
-                    return None;
-                };
-                let end_date: u64 = if let Ok(end_date) = get_all_between_strict(body, "ends_at&quot;:", ",&quot;")?.parse() {
-                    end_date
-                } else {
-                    return None;
-                };
-                let entry_count: u64 = if let Ok(entry_count) = get_all_between_strict(body, "initEntryCount(", ")")?.parse() {
-                    entry_count
-                } else {
-                    return None;
-                };
-                let name = get_all_between_strict(body, "name&quot;:&quot;", "&quot;")?.to_string();
-                let mut description = get_all_between_strict(body, "description&quot;:&quot;", "&quot;")?.to_string();
-                clear_description(&mut description);
-
-                Some(Giveaway {
-                    url: url.to_string(),
-                    description,
-                    entry_count,
-                    start_date,
-                    end_date,
-                    update_date: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                    name
-                })
-            } else {
-                None
+                if let Ok(body) = response.as_str() {
+                    let start_date: u64 = if let Ok(start_date) = get_all_between_strict(body, "starts_at&quot;:", ",&quot;")?.parse() {
+                        start_date
+                    } else {
+                        return None;
+                    };
+                    let end_date: u64 = if let Ok(end_date) = get_all_between_strict(body, "ends_at&quot;:", ",&quot;")?.parse() {
+                        end_date
+                    } else {
+                        return None;
+                    };
+                    let entry_count: u64 = if let Ok(entry_count) = get_all_between_strict(body, "initEntryCount(", ")")?.parse() {
+                        entry_count
+                    } else {
+                        return None;
+                    };
+                    let name = get_all_between_strict(body, "name&quot;:&quot;", "&quot;")?.to_string();
+                    let mut description = get_all_between_strict(body, "description&quot;:&quot;", "&quot;")?.to_string();
+                    clear_description(&mut description);
+    
+                    return Some(Giveaway {
+                        url: url.to_string(),
+                        description,
+                        entry_count,
+                        start_date,
+                        end_date,
+                        update_date: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                        name
+                    });
+                }
             }
+            None
         }
 
         /// Fetch some urls and wait a cooldown between each request
@@ -380,6 +395,10 @@ pub mod gleam {
         #[test]
         fn test_description() {
             let mut description = String::from("\\u003ch2\\u003eRetweet to Win Giveaway of $1000 TROY Tokens!\\u003c/h2\\u003e");
+            clear_description(&mut description);
+            println!("{}", description);
+
+            let mut description = String::from("\\u003cp\\u003eGet a chance to win one of the 10 prizes worth $50 each equivalent in Matic Tokens ($500 = 12773.35)! \\u003c/p\\u003e\\u003cp\\u003e\\u003c/p\\u003e\\u003cdiv style=\\");
             clear_description(&mut description);
             println!("{}", description);
         }
