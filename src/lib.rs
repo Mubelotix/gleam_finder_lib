@@ -257,7 +257,8 @@ pub mod gleam {
         *description = description[..get_idx_before(description, "\\u003")].to_string();
     }
 
-    pub(crate) fn get_gleam_id(url: &str) -> Option<&str> {
+    /// Extract the id of the giveaway from an url.
+    pub fn get_gleam_id(url: &str) -> Option<&str> {
         if url.len() == 37 && &url[0..30] == "https://gleam.io/competitions/" {
             return Some(&url[30..35]);
         } else if url.len() >= 23 && &url[0..17] == "https://gleam.io/" && &url[22..23] == "/"{
@@ -281,9 +282,17 @@ pub mod gleam {
     }
 
     impl Giveaway {
-        /// Load a gleam.io page and produce a giveaway struct. Return None if something don't work
+        /// Load a gleam.io page and produce a giveaway struct.
+        /// The url stored in this struct will be reformatted (ex: https://gleam.io/2zAsX/bitforex-speci => https://gleam.io/2zAsX/-) in order to make duplication inpossible.
+        /// Return None if something does not work.
         pub fn fetch(url: &str) -> Option<Giveaway> {
-            if let Ok(response) = minreq::get(url)
+            let giveaway_id = match get_gleam_id(url) {
+                Some(id) => id,
+                None => return None
+            };
+            let url = format!("https://gleam.io/{}/-", giveaway_id);
+
+            if let Ok(response) = minreq::get(&url)
                 .with_header("Host", "gleam.io")
                 .with_header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:72.0) Gecko/20100101 Firefox/72.0")
                 .with_header("Accept", "text/html")
@@ -315,7 +324,7 @@ pub mod gleam {
                     clear_description(&mut description);
     
                     return Some(Giveaway {
-                        url: url.to_string(),
+                        url,
                         description,
                         entry_count,
                         start_date,
@@ -420,6 +429,7 @@ pub mod gleam {
             assert_eq!(get_gleam_id("https://gleam.io/3uSs9/taylor-moon"),    Some("3uSs9"));
             assert_eq!(get_gleam_id("https://gleam.io/OWMw8/sorteo-de-1850"), Some("OWMw8"));
             assert_eq!(get_gleam_id("https://gleam.io/competitions/CEoiZ-h"), Some("CEoiZ"));
+            assert_eq!(get_gleam_id("https://gleam.io/7qHd6/-"),              Some("7qHd6"));
         }
 
         #[test]
