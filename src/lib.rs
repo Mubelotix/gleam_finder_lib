@@ -191,6 +191,7 @@ pub mod google {
 
 pub mod intermediary {
     use crate::string_tools::*;
+    use crate::gleam::get_gleam_id;
 
     pub fn resolve(url: &str) -> Vec<String> {
         if let Ok(response) = minreq::get(url)
@@ -215,7 +216,13 @@ pub mod intermediary {
                         rep.push(url);
                     }
                 }
-                rep
+                let mut final_rep = Vec::new();
+                for url in rep {
+                    if let Some(id) = get_gleam_id(&url) {
+                        final_rep.push(format!("https://gleam.io/{}/-", id));
+                    }
+                };
+                final_rep
             } else {
                 Vec::new()
             }
@@ -249,6 +256,15 @@ pub mod gleam {
             *description = String::from(before);
         }
         *description = description[..get_idx_before(description, "\\u003")].to_string();
+    }
+
+    pub(crate) fn get_gleam_id(url: &str) -> Option<&str> {
+        if url.len() == 37 && &url[0..30] == "https://gleam.io/competitions/" {
+            return Some(&url[30..35]);
+        } else if url.len() >= 23 && &url[0..17] == "https://gleam.io/" && &url[22..23] == "/"{
+            return Some(&url[17..22]);
+        }
+        None
     }
 
     /// A simple struct used to store informations about a gleam.io giveaway.
@@ -405,6 +421,16 @@ pub mod gleam {
 
             let giveaway = Giveaway::fetch("https://gleam.io/8nTqy/amd-5700xt-gpu").unwrap();
             println!("{:?}", giveaway);
+        }
+
+        #[test]
+        fn get_gleam_urls() {
+            assert_eq!(get_gleam_id("https://gleam.io/competitions/lSq1Q-s"), Some("lSq1Q"));
+            assert_eq!(get_gleam_id("https://gleam.io/2zAsX/bitforex-speci"), Some("2zAsX"));
+            assert_eq!(get_gleam_id("https://gleam.io/7qHd6/sorteo"),         Some("7qHd6"));
+            assert_eq!(get_gleam_id("https://gleam.io/3uSs9/taylor-moon"),    Some("3uSs9"));
+            assert_eq!(get_gleam_id("https://gleam.io/OWMw8/sorteo-de-1850"), Some("OWMw8"));
+            assert_eq!(get_gleam_id("https://gleam.io/competitions/CEoiZ-h"), Some("CEoiZ"));
         }
 
         #[test]
