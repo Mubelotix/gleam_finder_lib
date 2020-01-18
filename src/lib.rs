@@ -243,7 +243,6 @@ pub mod gleam {
     use super::string_tools::get_idx_before;
     use std::time::{SystemTime, UNIX_EPOCH, Duration};
     use std::thread::sleep;
-    use std::panic;
 
     #[cfg(feature = "serde-support")]
     use serde::{Serialize, Deserialize};
@@ -311,19 +310,9 @@ pub mod gleam {
                         return None;
                     };
                     let name = get_all_between_strict(body, "name&quot;:&quot;", "&quot;")?.to_string();
-                    let description = get_all_between_strict(body, "description&quot;:&quot;", "&quot;")?.to_string();
+                    let mut description = get_all_between_strict(body, "description&quot;:&quot;", "&quot;")?.to_string();
                     
-                    let description = match panic::catch_unwind(|| {
-                        let mut description = description;
-                        clear_description(&mut description);
-                        description
-                    }) {
-                        Ok(description) => description,
-                        Err(e) => {
-                            eprintln!("There was a big problem. I am working on fixing this issue. A panic has been cancelled but a giveaway has been lost. INFO: {:?}", e);
-                            return None;
-                        }
-                    };
+                    clear_description(&mut description);
     
                     return Some(Giveaway {
                         url: url.to_string(),
