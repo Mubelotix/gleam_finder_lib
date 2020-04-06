@@ -255,6 +255,27 @@ pub mod gleam {
             *description = String::from(before);
         }
         *description = description[..get_idx_before(description, "\\u003")].to_string();
+        while let Some(idx) = description.find("&#39;") {
+            description.remove(idx);
+            description.remove(idx);
+            description.remove(idx);
+            description.remove(idx);
+            description.remove(idx);
+            description.insert(idx, '\'');
+        }
+        while let Some(value) = get_all_between_strict(description, "\\u0026#", ";") {
+            if let Ok(charcode) = value.parse::<u32>() {
+                if let Some(character) = std::char::from_u32(charcode) {
+                    let range = get_idx_between_strict(description, "\\u0026#", ";").unwrap();
+                    let range = range.0-7..range.1+1;
+                    description.replace_range(range, &character.to_string())
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
     }
 
     /// Extract the id of the giveaway from an url.
@@ -439,13 +460,13 @@ pub mod gleam {
 
         #[test]
         fn test_description() {
-            let mut description = String::from("\\u003ch2\\u003eRetweet to Win Giveaway of $1000 TROY Tokens!\\u003c/h2\\u003e");
+            let mut description = String::from("\\u003ch2\\u003eRetweet to Win Giveaway of $1000 TROY Tokens! \\u0026#128420;\\u003c/h2\\u003e");
             clear_description(&mut description);
-            println!("{}", description);
+            assert_eq!(&description, "Retweet to Win Giveaway of $1000 TROY Tokens! 🖤");
 
-            let mut description = String::from("\\u003cp\\u003eGet a chance to win one of the 10 prizes worth $50 each equivalent in Matic Tokens ($500 = 12773.35)! \\u003c/p\\u003e\\u003cp\\u003e\\u003c/p\\u003e\\u003cdiv style=\\");
+            let mut description = String::from("\\u003cp\\u003eGet a chance to win one of the 10 prizes worth $50 each equivalent in Matic Tokens ($500 = 12773.35)! It&#39;s a fun game... but you know that.\\u003c/p\\u003e\\u003cp\\u003e\\u003c/p\\u003e\\u003cdiv style=\\");
             clear_description(&mut description);
-            println!("{}", description);
+            assert_eq!(&description, "Get a chance to win one of the 10 prizes worth $50 each equivalent in Matic Tokens ($500 = 12773.35)! It's a fun game... but you know that.");
         }
     }
 }
