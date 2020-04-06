@@ -6,7 +6,7 @@
 //! 
 //! # Examples
 //! 
-//! ```
+//! ```no_run
 //! use gleam_finder::*;
 //! 
 //! for page in 0..4 {
@@ -272,7 +272,7 @@ pub mod gleam {
     #[derive(Debug)]
     #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
     pub struct Giveaway {
-        url: String,
+        gleam_id: String,
         entry_count: u64,
         start_date: u64,
         end_date: u64,
@@ -324,7 +324,7 @@ pub mod gleam {
                     clear_description(&mut description);
     
                     return Some(Giveaway {
-                        url,
+                        gleam_id: giveaway_id.to_string(),
                         description,
                         entry_count,
                         start_date,
@@ -354,8 +354,8 @@ pub mod gleam {
         }
 
         /// Return the url
-        pub fn get_url(&self) -> &str {
-            &self.url
+        pub fn get_url(&self) -> String {
+            format!("https://gleam.io/{}/-", self.gleam_id)
         }
 
         /// Return the name
@@ -398,7 +398,7 @@ pub mod gleam {
 
         /// Reload the giveaway and update informations. 
         pub fn update(&mut self) {
-            if let Some(giveaway) = Giveaway::fetch(&self.url) {
+            if let Some(giveaway) = Giveaway::fetch(&self.get_url()) {
                 *self = giveaway;
             } else {
                 eprintln!("this giveaways seems to be inexistant now...");
@@ -412,7 +412,7 @@ pub mod gleam {
 
         #[test]
         fn test_giveaway_struct() {
-            let giveaway = Giveaway::fetch("https://gleam.io/WUlv8/troy-xmas-giveaway").unwrap();
+            let giveaway = Giveaway::fetch("https://gleam.io/29CPn/-2-alok-gveaway-and-12000-diamonds-").unwrap();
             println!("{:?}", giveaway);
 
             sleep(Duration::from_secs(5));
