@@ -358,6 +358,11 @@ pub mod gleam {
             format!("https://gleam.io/{}/-", self.gleam_id)
         }
 
+        /// Return the gleam giveaway id
+        pub fn get_gleam_id(&self) -> &str {
+            &self.gleam_id
+        }
+
         /// Return the name
         pub fn get_name(&self) -> &str {
             &self.name
