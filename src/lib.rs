@@ -294,7 +294,7 @@ pub mod gleam {
     #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
     pub struct Giveaway {
         gleam_id: String,
-        entry_count: u64,
+        entry_count: Option<u64>,
         start_date: u64,
         end_date: u64,
         update_date: u64,
@@ -334,10 +334,14 @@ pub mod gleam {
                     } else {
                         return None;
                     };
-                    let entry_count: u64 = if let Ok(entry_count) = get_all_between_strict(body, "initEntryCount(", ")")?.parse() {
-                        entry_count
+                    let entry_count: Option<u64> = if let Some(entry_count) = get_all_between_strict(body, "initEntryCount(", ")") {
+                        if let Ok(entry_count) = entry_count.parse() {
+                            Some(entry_count)
+                        } else {
+                            None
+                        }
                     } else {
-                        return None;
+                        None
                     };
                     let name = get_all_between_strict(body, "name&quot;:&quot;", "&quot;")?.to_string();
                     let mut description = get_all_between_strict(body, "description&quot;:&quot;", "&quot;")?.to_string();
@@ -395,7 +399,7 @@ pub mod gleam {
         }
 
         /// Return the number of entries
-        pub fn get_entry_count(&self) -> u64 {
+        pub fn get_entry_count(&self) -> Option<u64> {
             self.entry_count
         }
 
@@ -444,6 +448,11 @@ pub mod gleam {
             sleep(Duration::from_secs(5));
 
             let giveaway = Giveaway::fetch("https://gleam.io/8nTqy/amd-5700xt-gpu").unwrap();
+            println!("{:?}", giveaway);
+
+            sleep(Duration::from_secs(5));
+
+            let giveaway = Giveaway::fetch("https://gleam.io/ff3QT/win-an-ipad-pro-with-canstar").unwrap();
             println!("{:?}", giveaway);
         }
 
