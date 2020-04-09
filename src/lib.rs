@@ -19,109 +19,9 @@
 //! }
 //! ```
 
-mod string_tools {
-    pub fn get_all_before_strict<'a>(text: &'a str, begin: &str) -> Option<&'a str> {
-        let begin = text.find(begin)?;
-        Some(&text[..begin])
-    }
-
-    pub fn get_all_after_strict<'a>(text: &'a str, end: &str) -> Option<&'a str> {
-        let end = text.find(end)? + end.len();
-        Some(&text[end..])
-    }
-
-    pub fn get_idx_before_strict<'a>(text: &'a str, begin: &str) -> Option<usize> {
-        let begin = text.find(begin)?;
-        Some(begin)
-    }
-
-    pub fn get_idx_before(text: &str, begin: &str) -> usize {
-        if let Some(idx) = text.find(begin) {
-            return idx
-        } else {
-            return text.len();
-        }
-    }
-
-    pub fn get_idx_after_strict<'a>(text: &'a str, end: &str) -> Option<usize> {
-        let end = text.find(end)? + end.len();
-        Some(end)
-    }
-
-    pub fn get_all_between_strict<'a>(text: &'a str, begin: &str, end: &str) -> Option<&'a str> {
-        let text = get_all_after_strict(text, begin)?;
-        let text = get_all_before_strict(text, end)?;
-        Some(text)
-    }
-
-    pub fn get_idx_between_strict<'a>(text: &'a str, begin: &str, end: &str) -> Option<(usize, usize)> {
-        let after = get_idx_after_strict(text, begin)?;
-        let before = get_idx_before_strict(&text[after..], end)?;
-        Some((after, after + before))
-    }
-
-    pub fn get_all_before<'a>(text: &'a str, begin: &str) -> &'a str {
-        let begin = text.find(begin).unwrap_or(text.len());
-        &text[..begin]
-    }
-
-    pub fn get_all_after<'a>(text: &'a str, end: &str) -> &'a str {
-        if let Some(mut end_index) = text.find(end) {
-            end_index += end.len();
-            return &text[end_index..];
-        } else {
-            return "";
-        }
-    }
-
-    pub fn get_all_between<'a>(text: &'a str, begin: &str, end: &str) -> &'a str {
-        let text = get_all_after(text, begin);
-        let text = get_all_before(text, end);
-        text
-    }
-
-    /// put an url+noise, get url (without http://domain.something/)
-    pub fn get_url(url: &str) -> &str {
-        let mut i = 0;
-        for c in url.chars() {
-            if !c.is_ascii_alphanumeric() {
-                if c != '-' && c != '/' && c != '_' {
-                    break;
-                }
-            }
-            i += 1;
-        }
-        &url[..i]
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        #[test]
-        fn string_tools_test() {
-            assert_eq!("/search", get_url("/search?q=\"gleam.io\"&tbs=qdr:h&filter=0&start={}"));
-            assert_eq!("/competition/something-wtf-giveaway", get_url("/competition/something-wtf-giveaway and more"));
-            assert_eq!(Some("test"), get_all_before_strict("testlol", "lol"));
-            assert_eq!(Some("test"), get_all_before_strict("testloltestlol", "lol"));
-            assert_eq!(Some("lol"), get_all_after_strict("testlol", "test"));
-            assert_eq!(Some("testlol"), get_all_after_strict("testloltestlol", "lol"));
-            assert_eq!(Some("str3str4"), get_all_between_strict("str1str2str3str4str5", "str2", "str5"));
-            assert_eq!(Some("str3str4"), get_all_between_strict("str5str1str2str3str4str5str2str3str5", "str2", "str5"));
-            assert_eq!(None, get_all_before_strict("str1str2", "str3"));
-            assert_eq!("str1str2", get_all_before("str1str2", "str3"));
-            assert_eq!(None, get_all_after_strict("str1str2", "str3"));
-            assert_eq!("", get_all_after("str1str2", "str3"));
-            assert_eq!("str2str3", get_all_between("str1str2str3str4", "str1", "str4"));
-            assert_eq!("", get_all_between("str1str2str3str4", "str0", "str4"));
-            assert_eq!("str2str3str4", get_all_between("str1str2str3str4", "str1", "str6"));
-        }
-    }
-}
-
 /// Contains functions related to google pages parsing.
 pub mod google {
-    use crate::string_tools::*;
+    use string_tools::{get_all_between_strict, get_all_after};
 
     fn get_full_url(page: usize) -> String {
         format!(
@@ -190,8 +90,22 @@ pub mod google {
 }
 
 pub mod intermediary {
-    use crate::string_tools::*;
+    use string_tools::get_all_after;
     use crate::gleam::get_gleam_id;
+
+    /// put an url+noise, get url (without http://domain.something/)
+    fn get_url(url: &str) -> &str {
+        let mut i = 0;
+        for c in url.chars() {
+            if !c.is_ascii_alphanumeric() {
+                if c != '-' && c != '/' && c != '_' {
+                    break;
+                }
+            }
+            i += 1;
+        }
+        &url[..i]
+    }
 
     pub fn resolve(url: &str) -> Vec<String> {
         if let Ok(response) = minreq::get(url)
@@ -236,9 +150,7 @@ pub mod intermediary {
 
 /// Contains giveaways fetcher
 pub mod gleam {
-    use super::string_tools::get_all_between_strict;
-    use super::string_tools::get_idx_between_strict;
-    use super::string_tools::get_idx_before;
+    use string_tools::{get_all_between_strict, get_idx_between_strict, get_idx_before};
     use std::time::{SystemTime, UNIX_EPOCH, Duration};
     use std::thread::sleep;
 
