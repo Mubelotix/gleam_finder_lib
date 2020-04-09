@@ -206,11 +206,13 @@ pub mod intermediary {
                 let mut rep = Vec::new();
                 while get_all_after(&body, "https://gleam.io/") != "" {
                     let url = get_url(get_all_after(&body, "https://gleam.io/"));
-                    body = get_all_after(&body, &url);
+                    body = get_all_after(&body, "https://gleam.io/");
                     let url = if url.len() >= 20 {
                         format!("https://gleam.io/{}", &url[..20])
-                    } else {
+                    } else if url.len() > 0 {
                         format!("https://gleam.io/{}", url)
+                    } else {
+                        continue;
                     };
                     if !rep.contains(&url) {
                         rep.push(url);
@@ -227,10 +229,6 @@ pub mod intermediary {
                 Vec::new()
             }
         } else {
-            eprintln!(
-                "Warning: can't get response for {}",
-                url
-            );
             Vec::new()
         }
     }
