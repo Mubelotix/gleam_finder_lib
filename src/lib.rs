@@ -176,14 +176,14 @@ pub mod gleam {
     #[derive(Debug)]
     #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
     pub struct Giveaway {
-        gleam_id: String,
-        entry_count: Option<u64>,
-        entry_methods: Vec<(String, u64)>,
-        start_date: u64,
-        end_date: u64,
-        update_date: u64,
-        name: String,
-        description: String,
+        pub gleam_id: String,
+        pub entry_count: Option<u64>,
+        pub entry_methods: Vec<(String, u64)>,
+        pub start_date: u64,
+        pub end_date: u64,
+        pub update_date: u64,
+        pub name: String,
+        pub description: String,
     }
 
     impl Giveaway {
@@ -276,47 +276,16 @@ pub mod gleam {
             format!("https://gleam.io/{}/-", self.gleam_id)
         }
 
-        /// Return the gleam giveaway id
-        pub fn get_gleam_id(&self) -> &str {
-            &self.gleam_id
-        }
-
-        /// Return the name
-        pub fn get_name(&self) -> &str {
-            &self.name
-        }
-
-        /// Return the description
-        pub fn get_description(&self) -> &str {
-            &self.description
-        }
-
-        /// Return the number of entries
-        pub fn get_entry_count(&self) -> Option<u64> {
-            self.entry_count
-        }
-
-        /// Return the creation date in seconds
-        pub fn get_start_date(&self) -> u64 {
-            self.start_date
-        }
-
-        /// Return the end date in seconds
-        pub fn get_end_date(&self) -> u64 {
-            self.end_date
-        }
-
-        /// Return the last update date in seconds
-        pub fn get_update_date(&self) -> u64 {
-            self.update_date
-        }
-
-        /// Check if the giveaway is ended
-        pub fn is_active(&self) -> bool {
+        /// Check if the giveaway is running
+        pub fn is_running(&self) -> bool {
             if self.end_date < SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() {
                 return true;
             }
             false
+        }
+
+        pub fn get_max_entries_per_account(&self) -> u64 {
+            self.entry_methods.iter().map(|e| e.1).sum()
         }
     }
 
