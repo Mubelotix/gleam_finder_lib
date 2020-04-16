@@ -84,7 +84,7 @@ pub mod google {
         #[test]
         fn resolve_google_request() {
             let result = search(0);
-            assert!(result.len() > 0);
+            assert!(!result.is_empty());
         }
     }
 }
@@ -97,10 +97,8 @@ pub mod intermediary {
     fn get_url(url: &str) -> &str {
         let mut i = 0;
         for c in url.chars() {
-            if !c.is_ascii_alphanumeric() {
-                if c != '-' && c != '/' && c != '_' {
-                    break;
-                }
+            if !c.is_ascii_alphanumeric() && c != '-' && c != '/' && c != '_' {
+                break;
             }
             i += 1;
         }
@@ -123,7 +121,7 @@ pub mod intermediary {
                     body = get_all_after(&body, "https://gleam.io/");
                     let url = if url.len() >= 20 {
                         format!("https://gleam.io/{}", &url[..20])
-                    } else if url.len() > 0 {
+                    } else if !url.is_empty() {
                         format!("https://gleam.io/{}", url)
                     } else {
                         continue;
@@ -150,7 +148,7 @@ pub mod intermediary {
 
 /// Contains giveaways fetcher
 pub mod gleam {
-    use string_tools::{get_all_between_strict, get_idx_between_strict, get_idx_before};
+    use string_tools::{get_all_between_strict, get_idx_between_strict};
     use std::time::{SystemTime, UNIX_EPOCH, Duration};
     use std::thread::sleep;
     use serde_json::{from_str, Value};
