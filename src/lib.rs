@@ -19,9 +19,16 @@
 //! }
 //! ```
 
+#[derive(Debug)]
+pub enum Error {
+    Timeout,
+    InvalidResponse,
+}
+
 /// Contains functions related to google pages parsing.
 pub mod google {
     use string_tools::{get_all_between_strict, get_all_after};
+    use super::Error;
 
     fn get_full_url(page: usize) -> String {
         format!(
@@ -40,7 +47,7 @@ pub mod google {
     /// // note that we only test the first page of google results and that there can be more
     /// let links = google::search(0);
     /// ```
-    pub fn search(page: usize) -> Vec<String> {
+    pub fn search(page: usize) -> Result<Vec<String>, Error> {
         if let Ok(response) = minreq::get(get_full_url(page))
             .with_header("Accept", "text/plain")
             .with_header("Host", "www.google.com")
@@ -56,16 +63,12 @@ pub mod google {
                     rep.push(url.to_string());
                     body = get_all_after(body, url);
                 }
-                rep
+                Ok(rep)
             } else {
-                Vec::new()
+                Err(Error::InvalidResponse)
             }
         } else {
-            eprintln!(
-                "Warning: can't get response from google for {}",
-                get_full_url(page)
-            );
-            Vec::new()
+            Err(Error::Timeout)
         }
     }
 
@@ -83,7 +86,7 @@ pub mod google {
 
         #[test]
         fn resolve_google_request() {
-            let result = search(0);
+            let result = search(0).unwrap();
             assert!(!result.is_empty());
         }
     }
@@ -92,6 +95,7 @@ pub mod google {
 pub mod intermediary {
     use string_tools::get_all_after;
     use crate::gleam::get_gleam_id;
+    use super::Error;
 
     /// put an url+noise, get url (without http://domain.something/)
     fn get_url(url: &str) -> &str {
@@ -105,7 +109,7 @@ pub mod intermediary {
         &url[..i]
     }
 
-    pub fn resolve(url: &str) -> Vec<String> {
+    pub fn resolve(url: &str) -> Result<Vec<String>, Error> {
         if let Ok(response) = minreq::get(url)
             .with_header("Accept", "text/plain")
             .with_header(
@@ -136,12 +140,12 @@ pub mod intermediary {
                         final_rep.push(format!("https://gleam.io/{}/-", id));
                     }
                 };
-                final_rep
+                Ok(final_rep)
             } else {
-                Vec::new()
+                Err(Error::InvalidResponse)
             }
         } else {
-            Vec::new()
+            Err(Error::Timeout)
         }
     }
 }
@@ -152,6 +156,7 @@ pub mod gleam {
     use std::time::{SystemTime, UNIX_EPOCH, Duration};
     use std::thread::sleep;
     use serde_json::{from_str, Value};
+    use super::Error;
 
     #[cfg(feature = "serde-support")]
     use serde::{Serialize, Deserialize};
@@ -173,6 +178,7 @@ pub mod gleam {
     pub struct Giveaway {
         gleam_id: String,
         entry_count: Option<u64>,
+        entry_methods: Vec<(String, u64)>,
         start_date: u64,
         end_date: u64,
         update_date: u64,
@@ -184,10 +190,10 @@ pub mod gleam {
         /// Load a gleam.io page and produce a giveaway struct.
         /// The url stored in this struct will be reformatted (ex: https://gleam.io/2zAsX/bitforex-speci => https://gleam.io/2zAsX/-) in order to make duplication inpossible.
         /// Return None if something does not work.
-        pub fn fetch(url: &str) -> Option<Giveaway> {
+        pub fn fetch(url: &str) -> Result<Giveaway, Error> {
             let giveaway_id = match get_gleam_id(url) {
                 Some(id) => id,
-                None => return None
+                None => return Err(Error::InvalidResponse)
             };
             let url = format!("https://gleam.io/{}/-", giveaway_id);
 
@@ -205,7 +211,7 @@ pub mod gleam {
                     if let Some(json) = get_all_between_strict(body, "<div class='popup-blocks-container' ng-init='initCampaign(", ")'>") {
                         let json = json.replace("&quot;", "\"");
                         if let Ok(json) = from_str::<Value>(&json) {
-                            if let (Some(campaign), Some(Some(incentives))) = (json["campaign"].as_object(), json["incentives"].as_array().map(|a| a[0].as_object())) {
+                            if let (Some(campaign), Some(Some(incentives)), Some(entry_methods_json)) = (json["campaign"].as_object(), json["incentives"].as_array().map(|a| a[0].as_object()), json["entry_methods"].as_array()) {
                                 let entry_count: Option<u64> = if let Some(entry_count) = get_all_between_strict(body, "initEntryCount(", ")") {
                                     if let Ok(entry_count) = entry_count.parse() {
                                         Some(entry_count)
@@ -216,7 +222,12 @@ pub mod gleam {
                                     None
                                 };
 
-                                let mut description = incentives["description"].as_str()?.to_string();
+                                let mut entry_methods = Vec::new();
+                                for entry_method in entry_methods_json {
+                                    entry_methods.push((entry_method["entry_type"].as_str().ok_or(Error::InvalidResponse)?.to_string(), entry_method["worth"].as_u64().ok_or(Error::InvalidResponse)?))
+                                }
+
+                                let mut description = incentives["description"].as_str().ok_or(Error::InvalidResponse)?.to_string();
                                 while let Some((begin, end)) = get_idx_between_strict(&description, "<", ">") {
                                     description.replace_range(begin-1..end+1, "");
                                 }
@@ -224,12 +235,13 @@ pub mod gleam {
                                 description = description.replace("\u{a0}", "\n");
                                 description = description.replace("&#39;", "'");
                             
-                                return Some(Giveaway {
+                                return Ok(Giveaway {
                                     gleam_id: giveaway_id.to_string(),
-                                    name: campaign["name"].as_str().map(|s| s.to_string())?,
+                                    name: campaign["name"].as_str().map(|s| s.to_string()).ok_or(Error::InvalidResponse)?,
                                     description,
-                                    start_date: campaign["starts_at"].as_u64()?,
-                                    end_date: campaign["ends_at"].as_u64()?,
+                                    entry_methods,
+                                    start_date: campaign["starts_at"].as_u64().ok_or(Error::InvalidResponse)?,
+                                    end_date: campaign["ends_at"].as_u64().ok_or(Error::InvalidResponse)?,
                                     update_date: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
                                     entry_count
                                 })
@@ -237,8 +249,10 @@ pub mod gleam {
                         }
                     }
                 }
+                Err(Error::InvalidResponse)
+            } else {
+                Err(Error::Timeout)
             }
-            None
         }
 
         /// Fetch some urls and wait a cooldown between each request
@@ -246,7 +260,7 @@ pub mod gleam {
             let mut giveaways = Vec::new();
 
             for url in &urls {
-                if let Some(giveaway) = Giveaway::fetch(url) {
+                if let Ok(giveaway) = Giveaway::fetch(url) {
                     giveaways.push(giveaway)
                 }
                 if urls.len() > 1 {
@@ -303,15 +317,6 @@ pub mod gleam {
                 return true;
             }
             false
-        }
-
-        /// Reload the giveaway and update informations. 
-        pub fn update(&mut self) {
-            if let Some(giveaway) = Giveaway::fetch(&self.get_url()) {
-                *self = giveaway;
-            } else {
-                eprintln!("this giveaways seems to be inexistant now...");
-            }
         }
     }
 
