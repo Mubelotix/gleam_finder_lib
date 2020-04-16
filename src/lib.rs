@@ -153,40 +153,10 @@ pub mod gleam {
     use string_tools::{get_all_between_strict, get_idx_between_strict, get_idx_before};
     use std::time::{SystemTime, UNIX_EPOCH, Duration};
     use std::thread::sleep;
+    use serde_json::{from_str, Value};
 
     #[cfg(feature = "serde-support")]
     use serde::{Serialize, Deserialize};
-
-    fn clear_description(description: &mut String) {
-        while let Some((x, x2)) = get_idx_between_strict(&description, "\\u003c", "\\u003e") {
-            let mut before = description[..x-6].to_string();
-            let after = &description[x2+6..];
-            before.push_str(after);
-            *description = String::from(before);
-        }
-        *description = description[..get_idx_before(description, "\\u003")].to_string();
-        while let Some(idx) = description.find("&#39;") {
-            description.remove(idx);
-            description.remove(idx);
-            description.remove(idx);
-            description.remove(idx);
-            description.remove(idx);
-            description.insert(idx, '\'');
-        }
-        while let Some(value) = get_all_between_strict(description, "\\u0026#", ";") {
-            if let Ok(charcode) = value.parse::<u32>() {
-                if let Some(character) = std::char::from_u32(charcode) {
-                    let range = get_idx_between_strict(description, "\\u0026#", ";").unwrap();
-                    let range = range.0-7..range.1+1;
-                    description.replace_range(range, &character.to_string())
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-    }
 
     /// Extract the id of the giveaway from an url.
     pub fn get_gleam_id(url: &str) -> Option<&str> {
@@ -234,39 +204,40 @@ pub mod gleam {
                 .send()
             {
                 if let Ok(body) = response.as_str() {
-                    let start_date: u64 = if let Ok(start_date) = get_all_between_strict(body, "starts_at&quot;:", ",&quot;")?.parse() {
-                        start_date
-                    } else {
-                        return None;
-                    };
-                    let end_date: u64 = if let Ok(end_date) = get_all_between_strict(body, "ends_at&quot;:", ",&quot;")?.parse() {
-                        end_date
-                    } else {
-                        return None;
-                    };
-                    let entry_count: Option<u64> = if let Some(entry_count) = get_all_between_strict(body, "initEntryCount(", ")") {
-                        if let Ok(entry_count) = entry_count.parse() {
-                            Some(entry_count)
-                        } else {
-                            None
+                    if let Some(json) = get_all_between_strict(body, "<div class='popup-blocks-container' ng-init='initCampaign(", ")'>") {
+                        let json = json.replace("&quot;", "\"");
+                        if let Ok(json) = from_str::<Value>(&json) {
+                            if let (Some(campaign), Some(Some(incentives))) = (json["campaign"].as_object(), json["incentives"].as_array().map(|a| a[0].as_object())) {
+                                let entry_count: Option<u64> = if let Some(entry_count) = get_all_between_strict(body, "initEntryCount(", ")") {
+                                    if let Ok(entry_count) = entry_count.parse() {
+                                        Some(entry_count)
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                };
+
+                                let mut description = incentives["description"].as_str()?.to_string();
+                                while let Some((begin, end)) = get_idx_between_strict(&description, "<", ">") {
+                                    description.replace_range(begin-1..end+1, "");
+                                }
+
+                                description = description.replace("\u{a0}", "\n");
+                                description = description.replace("&#39;", "'");
+                            
+                                return Some(Giveaway {
+                                    gleam_id: giveaway_id.to_string(),
+                                    name: campaign["name"].as_str().map(|s| s.to_string())?,
+                                    description,
+                                    start_date: campaign["starts_at"].as_u64()?,
+                                    end_date: campaign["ends_at"].as_u64()?,
+                                    update_date: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                                    entry_count
+                                })
+                            }
                         }
-                    } else {
-                        None
-                    };
-                    let name = get_all_between_strict(body, "name&quot;:&quot;", "&quot;")?.to_string();
-                    let mut description = get_all_between_strict(body, "description&quot;:&quot;", "&quot;")?.to_string();
-                    
-                    clear_description(&mut description);
-    
-                    return Some(Giveaway {
-                        gleam_id: giveaway_id.to_string(),
-                        description,
-                        entry_count,
-                        start_date,
-                        end_date,
-                        update_date: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                        name
-                    });
+                    }
                 }
             }
             None
@@ -333,7 +304,7 @@ pub mod gleam {
             if self.end_date < SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() {
                 return true;
             }
-            return false;
+            false
         }
 
         /// Reload the giveaway and update informations. 
@@ -375,17 +346,6 @@ pub mod gleam {
             assert_eq!(get_gleam_id("https://gleam.io/OWMw8/sorteo-de-1850"), Some("OWMw8"));
             assert_eq!(get_gleam_id("https://gleam.io/competitions/CEoiZ-h"), Some("CEoiZ"));
             assert_eq!(get_gleam_id("https://gleam.io/7qHd6/-"),              Some("7qHd6"));
-        }
-
-        #[test]
-        fn test_description() {
-            let mut description = String::from("\\u003ch2\\u003eRetweet to Win Giveaway of $1000 TROY Tokens! \\u0026#128420;\\u003c/h2\\u003e");
-            clear_description(&mut description);
-            assert_eq!(&description, "Retweet to Win Giveaway of $1000 TROY Tokens! 🖤");
-
-            let mut description = String::from("\\u003cp\\u003eGet a chance to win one of the 10 prizes worth $50 each equivalent in Matic Tokens ($500 = 12773.35)! It&#39;s a fun game... but you know that.\\u003c/p\\u003e\\u003cp\\u003e\\u003c/p\\u003e\\u003cdiv style=\\");
-            clear_description(&mut description);
-            assert_eq!(&description, "Get a chance to win one of the 10 prizes worth $50 each equivalent in Matic Tokens ($500 = 12773.35)! It's a fun game... but you know that.");
         }
     }
 }
