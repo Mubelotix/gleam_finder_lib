@@ -65,6 +65,12 @@ pub mod google {
                     rep.push(url.to_string());
                     body = get_all_after(body, url);
                 }
+                while let Some(url) =
+                    get_all_between_strict(body, "\"><a href=\"", "\" data-ved=\"")
+                {
+                    rep.push(url.to_string());
+                    body = get_all_after(body, url);
+                }
                 Ok(rep)
             } else {
                 Err(Error::InvalidResponse)
@@ -148,6 +154,16 @@ pub mod intermediary {
             }
         } else {
             Err(Error::Timeout)
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::resolve;
+
+        #[test]
+        fn resolving() {
+            assert_eq!(resolve("https://www.youtube.com/watch?v=-DS1qgHjoJY").unwrap().len(), 1);
         }
     }
 }
