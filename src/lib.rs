@@ -238,11 +238,11 @@ pub mod gleam {
                         if let Ok(json) = from_str::<Value>(&json) {
                             if let (
                                 Some(campaign),
-                                Some(Some(incentives)),
+                                Some(incentives),
                                 Some(entry_methods_json),
                             ) = (
                                 json["campaign"].as_object(),
-                                json["incentives"].as_array().map(|a| a[0].as_object()),
+                                json["incentive"].as_object(),
                                 json["entry_methods"].as_array(),
                             ) {
                                 let entry_count: Option<u64> = if let Some(entry_count) =
@@ -279,10 +279,9 @@ pub mod gleam {
                                 {
                                     description.replace_range(begin - 1..end + 1, "");
                                 }
-
                                 description = description.replace("\u{a0}", "\n");
                                 description = description.replace("&#39;", "'");
-
+                                
                                 return Ok(Giveaway {
                                     gleam_id: giveaway_id.to_string(),
                                     name: campaign["name"]

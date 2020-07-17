@@ -1,6 +1,6 @@
 [package]
 name = "gleam_finder"
-version = "0.5.0"
+version = "0.5.1"
 license = "MIT"
 description = "A very small crate you can use to get gleam.io links."
 authors = ["Mubelotix <mubelotix@gmail.com>"]
