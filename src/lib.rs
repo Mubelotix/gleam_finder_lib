@@ -58,18 +58,18 @@ pub mod google {
             .send()
         {
             if let Ok(mut body) = response.as_str() {
+                /*use std::io::prelude::*;  // useful for debugging
+                use std::fs::File;
+                let mut file = File::create(format!("page{}.html", page)).unwrap();
+                file.write_all(body.as_bytes()).unwrap();*/
                 let mut rep = Vec::new();
                 while let Some(url) =
-                    get_all_between_strict(body, "\"r\"><a href=\"", "\" onmousedown=\"return rwt(")
+                    get_all_between_strict(body, "\"><a href=\"", "\"")
                 {
-                    rep.push(url.to_string());
                     body = get_all_after(body, url);
-                }
-                while let Some(url) =
-                    get_all_between_strict(body, "\"><a href=\"", "\" data-ved=\"")
-                {
-                    rep.push(url.to_string());
-                    body = get_all_after(body, url);
+                    if body.starts_with("\" onmousedown=\"return rwt(") || body.starts_with("\" data-ved=\"2a") {
+                        rep.push(url.to_string());
+                    }
                 }
                 Ok(rep)
             } else {
@@ -96,6 +96,9 @@ pub mod google {
         fn resolve_google_request() {
             let result = search(0).unwrap();
             assert!(!result.is_empty());
+
+            let result = search(9).unwrap();
+            assert!(result.is_empty());
         }
     }
 }
