@@ -106,7 +106,7 @@ pub mod google {
 pub mod intermediary {
     use super::Error;
     use crate::gleam::get_gleam_id;
-    use string_tools::get_all_after;
+    use string_tools::{get_all_after, get_all_between};
 
     /// put an url+noise, get url (without http://domain.something/)
     fn get_url(url: &str) -> &str {
@@ -121,42 +121,49 @@ pub mod intermediary {
     }
 
     pub fn resolve(url: &str) -> Result<Vec<String>, Error> {
-        if let Ok(response) = minreq::get(url)
-            .with_header("Accept", "text/plain")
+        match minreq::get(url)
+            .with_header("Accept", "text/html,text/plain")
             .with_header(
                 "User-Agent",
-                "Mozilla/5.0 (X11; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0",
+                "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0",
+            )
+            .with_header(
+                "Host",
+                get_all_between(url, "://", "/"),
             )
             .send()
         {
-            if let Ok(mut body) = response.as_str() {
-                let mut rep = Vec::new();
-                while get_all_after(&body, "https://gleam.io/") != "" {
-                    let url = get_url(get_all_after(&body, "https://gleam.io/"));
-                    body = get_all_after(&body, "https://gleam.io/");
-                    let url = if url.len() >= 20 {
-                        format!("https://gleam.io/{}", &url[..20])
-                    } else if !url.is_empty() {
-                        format!("https://gleam.io/{}", url)
-                    } else {
-                        continue;
-                    };
-                    if !rep.contains(&url) {
-                        rep.push(url);
+            Ok(response) => {
+                if let Ok(mut body) = response.as_str() {
+                    let mut rep = Vec::new();
+                    while get_all_after(&body, "https://gleam.io/") != "" {
+                        let url = get_url(get_all_after(&body, "https://gleam.io/"));
+                        body = get_all_after(&body, "https://gleam.io/");
+                        let url = if url.len() >= 20 {
+                            format!("https://gleam.io/{}", &url[..20])
+                        } else if !url.is_empty() {
+                            format!("https://gleam.io/{}", url)
+                        } else {
+                            continue;
+                        };
+                        if !rep.contains(&url) {
+                            rep.push(url);
+                        }
                     }
-                }
-                let mut final_rep = Vec::new();
-                for url in rep {
-                    if let Some(id) = get_gleam_id(&url) {
-                        final_rep.push(format!("https://gleam.io/{}/-", id));
+                    let mut final_rep = Vec::new();
+                    for url in rep {
+                        if let Some(id) = get_gleam_id(&url) {
+                            final_rep.push(format!("https://gleam.io/{}/-", id));
+                        }
                     }
+                    Ok(final_rep)
+                } else {
+                    Err(Error::InvalidResponse)
                 }
-                Ok(final_rep)
-            } else {
-                Err(Error::InvalidResponse)
-            }
-        } else {
-            Err(Error::Timeout)
+            },
+            Err(_e) => {
+                Err(Error::Timeout)
+            },
         }
     }
 
